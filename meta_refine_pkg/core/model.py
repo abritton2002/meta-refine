@@ -87,10 +87,7 @@ class LlamaModelInterface:
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.config.model_name,
                 trust_remote_code=True,
-                use_fast=True,
-                resume_download=True,  # Resume interrupted downloads
-                local_files_only=False,  # Allow downloads
-                cache_dir=None,  # Use default cache
+                use_fast=True
             )
             
             # Set pad token if not present
@@ -104,7 +101,7 @@ class LlamaModelInterface:
                 "device_map": "auto",  # Always use auto device mapping for efficiency
                 "low_cpu_mem_usage": True,
                 "resume_download": True,  # Resume interrupted downloads
-                "local_files_only": True,  # Use cached files only to avoid re-download
+                "local_files_only": False,  # Allow downloads from HuggingFace
                 "cache_dir": None,  # Use default cache location
                 "offload_folder": "/tmp/meta_refine_offload",  # Offload to disk if needed
             }
