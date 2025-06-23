@@ -42,31 +42,36 @@ Meta-Refine leverages Meta's Llama 3.1-8B-Instruct model to provide intelligent,
 - **Caching Layer**: Avoid redundant analysis of unchanged code
 - **Parallel Processing**: Multi-threaded analysis for speed
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ```bash
-# Install uv (if not already installed)
+# 1. Clone and setup
+git clone https://github.com/abritton2002/meta-refine.git
+cd meta-refine
+
+# 2. Install dependencies (using uv)
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Quick setup with uv
-make quick-start
-
-# Or manual setup:
-# 1. Install dependencies
 uv pip install -e .
 
-# 2. Set up environment
-make setup-env
-# Edit .env file and add your HF_TOKEN from https://huggingface.co/settings/tokens
+# 3. Interactive setup wizard
+python3 meta_refine.py setup
 
-# 3. Run analysis on example files
-python3 meta_refine.py analyze --file examples/example.py
-
-# 4. Run on entire project
-python3 meta_refine.py analyze --project ./examples
-
-# 5. Run system health check
+# 4. Verify installation
 python3 meta_refine.py doctor
+
+# 5. Try it out!
+python3 meta_refine.py analyze --file examples/example.py
+```
+
+### Alternative Installation
+
+```bash
+# Using make (includes setup wizard)
+make quick-start
+
+# Manual pip installation
+pip install -r requirements.txt
+python3 meta_refine.py setup
 ```
 
 ## 📊 Example Output
@@ -94,6 +99,35 @@ python3 meta_refine.py doctor
 ├─ Missing docstring for UserService class
 ├─ Function `validate_user` needs parameter documentation
 ├─ Add usage examples in module docstring
+```
+
+## 🎯 CLI Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `setup` | Interactive configuration wizard | `meta-refine setup` |
+| `analyze` | Analyze files or projects | `meta-refine analyze --file app.py` |
+| `interactive` | Start analysis REPL mode | `meta-refine interactive` |
+| `doctor` | Check system health | `meta-refine doctor` |
+| `examples` | Show usage examples | `meta-refine examples` |
+| `completion` | Setup shell auto-completion | `meta-refine completion --install` |
+| `config` | Manage configuration | `meta-refine config --show` |
+| `benchmark` | Performance testing | `meta-refine benchmark file.py` |
+
+### 🔍 Analysis Options
+
+```bash
+# Security-focused analysis
+meta-refine analyze --file app.py --security --no-performance
+
+# Export as JSON report
+meta-refine analyze --project ./src --format json --output report.json
+
+# Critical issues only
+meta-refine analyze --project . --severity critical
+
+# Full project analysis with all options
+meta-refine analyze --project ./src --format html --output report.html --parallel
 ```
 
 ## 🎓 Learning Showcase
