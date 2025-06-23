@@ -8,7 +8,7 @@ and output formatting options.
 import os
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-from functools import lru_cache
+# from functools import lru_cache  # Removed temporarily
 
 # Load .env file explicitly
 try:
@@ -174,18 +174,19 @@ class Settings(BaseSettings):
         if not self.huggingface_token:
             self.huggingface_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
         
-        # Override nested config with environment variables
-        model_name = os.getenv("MODEL_NAME")
-        if model_name:
-            self.llama_config = ModelConfig(model_name=model_name)
+        # Create fresh ModelConfig with environment variables
+        model_name = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+        model_device = os.getenv("MODEL_DEVICE", "auto")
+        model_temp = float(os.getenv("MODEL_TEMPERATURE", "0.3"))
+        model_load_4bit = os.getenv("MODEL_LOAD_IN_4BIT", "false").lower() == "true"
         
-        model_device = os.getenv("MODEL_DEVICE")
-        if model_device:
-            self.llama_config.device = model_device
-            
-        model_temp = os.getenv("MODEL_TEMPERATURE")
-        if model_temp:
-            self.llama_config.temperature = float(model_temp)
+        # Override the llama_config entirely to ensure fresh loading
+        self.llama_config = ModelConfig(
+            model_name=model_name,
+            device=model_device,
+            temperature=model_temp,
+            load_in_4bit=model_load_4bit
+        )
     
     @field_validator("log_level")
     @classmethod  
@@ -196,13 +197,11 @@ class Settings(BaseSettings):
         return v.upper()
 
 
-@lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance."""
+    """Get settings instance (no cache for now to ensure fresh loading)."""
     return Settings()
 
 
 def update_settings(**kwargs) -> Settings:
-    """Update settings and clear cache."""
-    get_settings.cache_clear()
+    """Update settings."""
     return Settings(**kwargs) 

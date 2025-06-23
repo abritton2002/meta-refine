@@ -51,15 +51,21 @@ class LlamaModelInterface:
     
     def _create_quantization_config(self) -> Optional[BitsAndBytesConfig]:
         """Create quantization configuration if needed."""
-        if self.config.load_in_4bit:
-            return BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.float16,
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4"
-            )
-        elif self.config.load_in_8bit:
-            return BitsAndBytesConfig(load_in_8bit=True)
+        try:
+            if self.config.load_in_4bit:
+                logger.info("Enabling 4-bit quantization to reduce memory usage")
+                return BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4"
+                )
+            elif self.config.load_in_8bit:
+                logger.info("Enabling 8-bit quantization to reduce memory usage")
+                return BitsAndBytesConfig(load_in_8bit=True)
+        except Exception as e:
+            logger.warning(f"Quantization setup failed: {e}")
+            logger.info("Falling back to full precision (may require more memory)")
         return None
     
     def _load_model(self):
@@ -70,40 +76,56 @@ class LlamaModelInterface:
                 login(token=self.config.huggingface_token)
             
             logger.info(f"Loading model: {self.config.model_name}")
+            logger.debug(f"Model config details: {self.config}")
             
-            # Load tokenizer
+            # Optimize download with progress tracking and resume capability
+            import os
+            os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'  # Use faster hf-transfer
+            
+            # Load tokenizer first (smaller download)
+            logger.info("Loading tokenizer...")
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.config.model_name,
                 trust_remote_code=True,
-                use_fast=True
+                use_fast=True,
+                resume_download=True,  # Resume interrupted downloads
+                local_files_only=False,  # Allow downloads
+                cache_dir=None,  # Use default cache
             )
             
             # Set pad token if not present
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Configure model loading parameters
+            # Configure model loading parameters with download optimizations
             model_kwargs = {
                 "trust_remote_code": True,
                 "torch_dtype": self._get_torch_dtype(),
-                "device_map": "auto" if self._device == "cuda" else None,
+                "device_map": "auto",  # Always use auto device mapping for efficiency
                 "low_cpu_mem_usage": True,
+                "resume_download": True,  # Resume interrupted downloads
+                "local_files_only": True,  # Use cached files only to avoid re-download
+                "cache_dir": None,  # Use default cache location
+                "offload_folder": "/tmp/meta_refine_offload",  # Offload to disk if needed
             }
             
             # Add quantization config if specified
             quantization_config = self._create_quantization_config()
             if quantization_config:
                 model_kwargs["quantization_config"] = quantization_config
+                logger.info("Using quantization to reduce memory usage")
             
-            # Load model
+            # Load model with progress indication
+            logger.info(f"Loading model weights... This may take several minutes for first download.")
+            logger.info(f"Model will be cached at: ~/.cache/huggingface/hub/")
+            
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.config.model_name,
                 **model_kwargs
             )
             
-            # Move to device if not using device_map
-            if model_kwargs.get("device_map") is None:
-                self.model = self.model.to(self._device)
+            # Device mapping is handled automatically by device_map="auto"
+            # No need to manually move to device
             
             # Create text generation pipeline
             self.pipeline = pipeline(
@@ -148,33 +170,43 @@ class LlamaModelInterface:
         
         base_prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
-You are an expert code reviewer and software architect with deep knowledge of {language} and software engineering best practices. Your task is to analyze the provided code and give actionable, specific suggestions for improvement.
+You are Claude Code, an expert AI programming assistant. You provide comprehensive code analysis with the precision and depth that developers expect from professional code review tools.
 
-Focus on:
-1. **Bug Detection**: Identify potential runtime errors, logic flaws, and edge cases
-2. **Performance**: Suggest algorithmic improvements and optimization opportunities  
-3. **Security**: Detect vulnerabilities and security anti-patterns
-4. **Best Practices**: Recommend code style, architecture, and maintainability improvements
-5. **Documentation**: Suggest missing or improved documentation
+ANALYSIS REQUIREMENTS:
+1. **Identify Real Issues**: Don't report style preferences as bugs. Focus on actual problems.
+2. **Be Specific**: Reference exact line numbers and code sections.
+3. **Provide Context**: Explain WHY something is an issue and what could go wrong.
+4. **Actionable Solutions**: Give concrete, implementable fixes.
+5. **Proper Severity**: Use CRITICAL for security/crashes, HIGH for bugs, MEDIUM for maintainability, LOW for style.
 
-For each issue found:
-- Specify the exact line number or code section
-- Explain the problem clearly
-- Provide a specific, actionable solution
-- Rate severity as CRITICAL, HIGH, MEDIUM, or LOW
-- Include a brief explanation of the impact
+FOCUS AREAS:
+• **Bugs & Logic Errors**: Null pointer exceptions, type errors, logic flaws, edge cases
+• **Security Vulnerabilities**: SQL injection, XSS, authentication bypass, data exposure
+• **Performance Issues**: Inefficient algorithms, memory leaks, unnecessary operations
+• **Code Quality**: Dead code, code smells, architectural issues, maintainability
+• **Best Practices**: Language-specific conventions, error handling, testing gaps
 
-Be precise, practical, and constructive in your feedback.<|eot_id|><|start_header_id|>user<|end_header_id|>
+OUTPUT FORMAT:
+For each issue, provide:
+```
+SEVERITY: [CRITICAL/HIGH/MEDIUM/LOW]
+LINE: [specific line number or range]
+ISSUE: [clear description of the problem]
+IMPACT: [what could go wrong]
+SOLUTION: [specific fix or improvement]
+```
 
-Please analyze this {language} code:
+IMPORTANT: Only report actual issues. If code is well-written, say "No significant issues found."<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+Analyze this {language} code for bugs, security vulnerabilities, performance issues, and code quality problems:
 
 ```{language}
 {code}
 ```
 
-{f"Additional context: {context}" if context else ""}
+{f"Context: {context}" if context else ""}
 
-Provide a comprehensive analysis with specific, actionable suggestions for improvement.<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Provide a thorough analysis following the format above.<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 """
         return base_prompt

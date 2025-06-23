@@ -7,6 +7,7 @@ Demonstrates advanced AI/ML engineering, software architecture, and developer to
 """
 
 import asyncio
+import logging
 import os
 import sys
 from pathlib import Path
@@ -24,6 +25,8 @@ from .core.config import Settings, get_settings
 from .core.formatter import ResultFormatter
 from .core.model import LlamaModelInterface
 from .core.utils import setup_logging, validate_environment, get_system_info
+
+logger = logging.getLogger(__name__)
 
 # Initialize CLI app and console
 app = typer.Typer(
@@ -205,8 +208,18 @@ async def _run_analysis(
         init_task = progress.add_task("🔧 Initializing components...", total=None)
         
         try:
-            model = LlamaModelInterface(settings.llama_config)
-            analyzer = CodeAnalyzer(model, settings.analysis_config)
+            # Check if we should use remote server
+            remote_url = os.getenv('REMOTE_SERVER_URL')
+            if remote_url:
+                logger.info(f"🌩️ Connecting to remote server: {remote_url}")
+                from .core.remote_client import RemoteModelInterface, RemoteAnalyzer
+                model = RemoteModelInterface(remote_url)
+                analyzer = RemoteAnalyzer(model, settings.analysis_config)
+            else:
+                logger.debug(f"Settings llama_config: {settings.llama_config}")
+                logger.info(f"Model name from config: {settings.llama_config.model_name}")
+                model = LlamaModelInterface(settings.llama_config)
+                analyzer = CodeAnalyzer(model, settings.analysis_config)
             formatter = ResultFormatter(settings.output_config)
             
             progress.update(init_task, description="✅ Components initialized")

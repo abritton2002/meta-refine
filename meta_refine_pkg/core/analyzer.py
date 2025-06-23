@@ -135,31 +135,71 @@ class CodeAnalyzer:
         return fnmatch.fnmatch(file_path, pattern)
     
     def _chunk_code(self, code: str, language: str) -> List[Tuple[str, int]]:
-        """Split large code files into analyzable chunks."""
+        """Split large code files into analyzable chunks with intelligent context preservation."""
         lines = code.split('\n')
         
+        # For smaller files, analyze as single chunk
         if len(lines) <= self.config.chunk_size:
             return [(code, 1)]
         
+        # Use AST-based chunking for Python
+        if language == 'python':
+            return self._chunk_python_ast(code)
+        
+        # Fallback to line-based chunking for other languages
+        return self._chunk_by_lines(lines)
+    
+    def _chunk_python_ast(self, code: str) -> List[Tuple[str, int]]:
+        """Chunk Python code using AST analysis for better semantic boundaries."""
+        try:
+            tree = ast.parse(code)
+            lines = code.split('\n')
+            chunks = []
+            
+            # Extract top-level nodes (classes, functions, imports)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    start_line = node.lineno
+                    end_line = getattr(node, 'end_lineno', start_line + 20)  # Fallback
+                    
+                    # Add some context before and after
+                    context_before = max(1, start_line - 5)
+                    context_after = min(len(lines), end_line + 5)
+                    
+                    chunk_lines = lines[context_before-1:context_after]
+                    chunk_content = '\n'.join(chunk_lines)
+                    
+                    if len(chunk_content.strip()) > 0:
+                        chunks.append((chunk_content, context_before))
+            
+            # If no major structures found, fall back to line chunking
+            if not chunks:
+                return self._chunk_by_lines(lines)
+            
+            return chunks
+            
+        except SyntaxError:
+            # Fall back to line-based chunking if AST parsing fails
+            return self._chunk_by_lines(lines)
+    
+    def _chunk_by_lines(self, lines: List[str]) -> List[Tuple[str, int]]:
+        """Chunk code by lines with logical boundaries."""
         chunks = []
         current_chunk = []
-        current_line = 1
         chunk_start_line = 1
         
         for i, line in enumerate(lines):
             current_chunk.append(line)
+            current_line = i + 1
             
             # Check if we should create a chunk
-            if (len(current_chunk) >= self.config.chunk_size or 
-                (language == 'python' and self._is_logical_break(line, lines, i))):
-                
-                # Add overlap from previous chunk if not the first
-                if chunks and self.config.chunk_overlap > 0:
-                    overlap_lines = min(self.config.chunk_overlap, len(current_chunk))
-                    chunk_content = '\n'.join(current_chunk)
-                else:
-                    chunk_content = '\n'.join(current_chunk)
-                
+            should_break = (
+                len(current_chunk) >= self.config.chunk_size or 
+                self._is_logical_break(line, lines, i)
+            )
+            
+            if should_break and len(current_chunk) > 10:  # Minimum chunk size
+                chunk_content = '\n'.join(current_chunk)
                 chunks.append((chunk_content, chunk_start_line))
                 
                 # Prepare for next chunk with overlap
@@ -175,7 +215,7 @@ class CodeAnalyzer:
         if current_chunk:
             chunks.append(('\n'.join(current_chunk), chunk_start_line))
         
-        return chunks
+        return chunks if chunks else [(('\n'.join(lines)), 1)]
     
     def _is_logical_break(self, line: str, all_lines: List[str], index: int) -> bool:
         """Determine if this is a good place to break for Python code."""
@@ -411,7 +451,11 @@ class CodeAnalyzer:
                 code, language, "comprehensive"
             )
             
+            logger.debug(f"Model response: {response[:200]}...")  # Log first 200 chars
+            
             issues = self._parse_model_response(response, start_line)
+            
+            logger.debug(f"Parsed {len(issues)} issues from response")
             
             return {
                 'issues': issues,
@@ -429,7 +473,97 @@ class CodeAnalyzer:
         """Parse the model's response to extract structured issues."""
         issues = []
         
-        # Simple regex-based parsing - could be enhanced with more sophisticated NLP
+        # Handle "No significant issues found" response
+        if "no significant issues found" in response.lower() or "no issues found" in response.lower():
+            return issues
+        
+        # Parse structured format: SEVERITY:, LINE:, ISSUE:, IMPACT:, SOLUTION:
+        issue_blocks = re.split(r'(?=SEVERITY:)', response, flags=re.IGNORECASE | re.MULTILINE)
+        
+        for block in issue_blocks:
+            if not block.strip():
+                continue
+                
+            issue = self._parse_issue_block(block, line_offset)
+            if issue:
+                issues.append(issue)
+        
+        # Fallback to legacy parsing if structured format not found
+        if not issues:
+            issues = self._parse_legacy_response(response, line_offset)
+        
+        return issues
+    
+    def _parse_issue_block(self, block: str, line_offset: int = 0) -> Optional[Dict]:
+        """Parse a single issue block in structured format."""
+        try:
+            issue = {}
+            
+            # Extract severity
+            severity_match = re.search(r'SEVERITY:\s*([A-Z]+)', block, re.IGNORECASE)
+            if severity_match:
+                issue['severity'] = severity_match.group(1).upper()
+            else:
+                return None
+            
+            # Extract line number
+            line_match = re.search(r'LINE:\s*(\d+)', block, re.IGNORECASE)
+            if line_match:
+                issue['line'] = int(line_match.group(1)) + line_offset
+            else:
+                issue['line'] = 1 + line_offset
+            
+            # Extract issue description
+            issue_match = re.search(r'ISSUE:\s*(.+?)(?=IMPACT:|SOLUTION:|$)', block, re.IGNORECASE | re.DOTALL)
+            if issue_match:
+                issue['description'] = issue_match.group(1).strip()
+            else:
+                issue['description'] = 'Unknown issue'
+            
+            # Extract impact
+            impact_match = re.search(r'IMPACT:\s*(.+?)(?=SOLUTION:|$)', block, re.IGNORECASE | re.DOTALL)
+            if impact_match:
+                issue['impact'] = impact_match.group(1).strip()
+            else:
+                issue['impact'] = 'Unknown impact'
+            
+            # Extract solution
+            solution_match = re.search(r'SOLUTION:\s*(.+?)$', block, re.IGNORECASE | re.DOTALL)
+            if solution_match:
+                issue['suggestion'] = solution_match.group(1).strip()
+            else:
+                issue['suggestion'] = 'No solution provided'
+            
+            # Determine issue type based on content
+            issue['type'] = self._categorize_issue(issue['description'])
+            issue['timestamp'] = time.time()
+            
+            return issue
+            
+        except Exception as e:
+            logger.warning(f"Error parsing issue block: {e}")
+            return None
+    
+    def _categorize_issue(self, description: str) -> str:
+        """Categorize issue based on description keywords."""
+        description_lower = description.lower()
+        
+        if any(keyword in description_lower for keyword in ['security', 'sql injection', 'xss', 'vulnerability', 'authentication', 'authorization']):
+            return 'security'
+        elif any(keyword in description_lower for keyword in ['performance', 'slow', 'inefficient', 'optimize', 'memory', 'cpu']):
+            return 'performance'
+        elif any(keyword in description_lower for keyword in ['bug', 'error', 'exception', 'crash', 'null', 'undefined']):
+            return 'bug'
+        elif any(keyword in description_lower for keyword in ['style', 'naming', 'convention', 'format']):
+            return 'style'
+        elif any(keyword in description_lower for keyword in ['documentation', 'comment', 'docstring']):
+            return 'documentation'
+        else:
+            return 'general'
+    
+    def _parse_legacy_response(self, response: str, line_offset: int = 0) -> List[Dict]:
+        """Legacy parsing for unstructured responses."""
+        issues = []
         lines = response.split('\n')
         current_issue = {}
         
