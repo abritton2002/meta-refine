@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "meta-refine"
 version = "1.0.0"
-description = "Intelligent code review and improvement system powered by Meta's Llama 3.1"
+description = "AI-powered code intelligence tool built with Meta's Llama 3.1 - Install globally and run with 'meta'"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -15,8 +15,8 @@ maintainers = [
     {name = "Meta-Refine Team", email = "team@meta-refine.dev"}
 ]
 keywords = [
-    "code-analysis", "llama", "ai", "code-review", "static-analysis",
-    "security", "performance", "refactoring", "meta", "llm"
+    "meta", "ai", "llama", "code-analysis", "code-review", "cli-tool",
+    "security", "performance", "static-analysis", "meta-ai", "developer-tools"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -97,10 +97,11 @@ Repository = "https://github.com/meta-refine/meta-refine"
 Changelog = "https://github.com/meta-refine/meta-refine/blob/main/CHANGELOG.md"
 
 [project.scripts]
-meta-refine = "meta_refine:app"
+meta = "meta_refine_pkg:app"
+meta-refine = "meta_refine_pkg:app"
 
 [tool.setuptools.packages.find]
-include = ["core*"]
+include = ["meta_refine_pkg*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json", "*.toml"]

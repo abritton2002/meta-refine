@@ -19,34 +19,38 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from core.analyzer import CodeAnalyzer
-from core.config import Settings, get_settings
-from core.formatter import ResultFormatter
-from core.model import LlamaModelInterface
-from core.utils import setup_logging, validate_environment, get_system_info
+from .core.analyzer import CodeAnalyzer
+from .core.config import Settings, get_settings
+from .core.formatter import ResultFormatter
+from .core.model import LlamaModelInterface
+from .core.utils import setup_logging, validate_environment, get_system_info
 
 # Initialize CLI app and console
 app = typer.Typer(
-    name="meta-refine",
-    help="""🚀 Meta-Refine: Intelligent Code Analysis
+    name="meta",
+    help="""✨ [bold rgb(25,119,243)]meta[/bold rgb(25,119,243)] [bold rgb(0,204,188)]refine[/bold rgb(0,204,188)] - AI-Powered Code Intelligence
 
-An AI-powered code review and improvement system using Meta's Llama 3.1 model.
-Analyzes code for bugs, security issues, performance problems, and style improvements.
+Built with Meta's cutting-edge Llama 3.1 model for intelligent code analysis.
+Instantly discover bugs, security vulnerabilities, and optimization opportunities.
 
-🎯 Quick Start:
-  meta-refine setup              # First-time setup wizard
-  meta-refine analyze file.py    # Analyze a single file
-  meta-refine interactive        # Interactive analysis mode
-  meta-refine doctor             # Check system health
+🚀 [bold]Quick Commands:[/bold]
+  [rgb(25,119,243)]meta setup[/rgb(25,119,243)]              # Get started in seconds
+  [rgb(0,204,188)]meta analyze file.py[/rgb(0,204,188)]    # Analyze any code file  
+  [rgb(255,186,8)]meta interactive[/rgb(255,186,8)]        # Launch AI coding assistant
+  [rgb(168,168,168)]meta doctor[/rgb(168,168,168)]             # System health check
 
-📖 Examples:
-  meta-refine analyze --file app.py --format json --output results.json
-  meta-refine analyze --project ./src --security --no-suggestions
-  meta-refine interactive
+🎯 [bold]Power Features:[/bold]
+  [dim]• Multi-language support (Python, JS, Java, C++, Go, Rust)[/dim]
+  [dim]• Real-time security vulnerability detection[/dim]
+  [dim]• Performance optimization suggestions[/dim]
+  [dim]• Export reports in JSON, HTML, Markdown[/dim]
 
-🔧 Configuration:
-  All settings can be configured via .env file or environment variables.
-  Run 'meta-refine setup' for guided configuration.
+💡 [bold]Examples:[/bold]
+  meta analyze --file app.py --security     # Security-focused scan
+  meta analyze --project ./src --format json # Full project report
+  meta interactive                           # AI-powered coding session
+
+[dim]Powered by Meta AI • Built for developers, by developers[/dim]
 """,
     add_completion=True,
     rich_markup_mode="rich",
@@ -55,16 +59,20 @@ console = Console()
 
 
 def display_banner():
-    """Display the Meta-Refine banner."""
+    """Display the Meta-Refine banner with Meta branding."""
+    # Meta-inspired gradient colors
     banner = Text()
-    banner.append("Meta-Refine", style="bold blue")
-    banner.append(" 🚀\n", style="bold")
-    banner.append("Intelligent Code Analysis with Llama 3.1", style="dim")
+    banner.append("meta", style="bold rgb(25,119,243)")  # Meta blue
+    banner.append(" refine", style="bold rgb(0,204,188)")  # Meta teal
+    banner.append(" ✨\n", style="bold rgb(255,186,8)")  # Meta yellow
+    banner.append("AI-Powered Code Intelligence by Meta", style="dim rgb(168,168,168)")
     
     console.print(Panel(
         banner,
-        border_style="blue",
+        border_style="rgb(25,119,243)",
         padding=(1, 2),
+        title="[bold rgb(25,119,243)]🔮 Meta AI[/bold rgb(25,119,243)]",
+        title_align="left"
     ))
 
 
@@ -150,7 +158,7 @@ def analyze(
             if not details['passed']:
                 console.print(f"  {details['status']} {check_name.replace('_', ' ').title()}")
                 console.print(f"    [dim]💡 {details['suggestion']}[/dim]")
-        console.print(f"\n[cyan]💡 Run 'meta-refine setup' for guided configuration[/cyan]")
+        console.print(f"\n[cyan]💡 Run 'meta setup' for guided configuration[/cyan]")
         raise typer.Exit(1)
     
     # Run analysis
@@ -267,14 +275,14 @@ def interactive():
     """
     display_banner()
     
-    console.print("\n[bold green]🎯 Interactive Mode Started[/bold green]")
-    console.print("Type 'help' for commands, 'exit' to quit\n")
+    console.print("\n[bold rgb(25,119,243)]🤖 Meta AI Assistant Activated[/bold rgb(25,119,243)]")
+    console.print("[dim]Type 'help' for commands, 'exit' to quit[/dim]\n")
     
     # Setup
     setup_logging(False)
     env_valid, _ = validate_environment(show_suggestions=False)
     if not env_valid:
-        console.print("[red]Environment not ready. Run 'meta-refine setup' first.[/red]")
+        console.print("[red]Environment not ready. Run 'meta setup' first.[/red]")
         raise typer.Exit(1)
     
     settings = get_settings()
@@ -282,7 +290,7 @@ def interactive():
     # Interactive REPL
     while True:
         try:
-            command = console.input("[bold cyan]meta-refine>[/bold cyan] ").strip()
+            command = console.input("[bold rgb(25,119,243)]meta>[/bold rgb(25,119,243)] ").strip()
             
             if command.lower() in ['exit', 'quit', 'q']:
                 console.print("[green]Goodbye![/green]")
@@ -434,14 +442,14 @@ def doctor():
     if env_valid:
         console.print("[green]✅ System ready for analysis![/green]")
         console.print("\n[bold]Quick Start:[/bold]")
-        console.print("• Try: [cyan]meta-refine analyze examples/example.py[/cyan]")
+        console.print("• Try: [cyan]meta analyze examples/example.py[/cyan]")
     else:
         console.print("[red]❌ System needs attention[/red]")
         console.print("\n[bold]Recommendations:[/bold]")
         for check_name, details in env_details.items():
             if not details['passed']:
                 console.print(f"• {details['suggestion']}")
-        console.print("\n[cyan]💡 Run 'meta-refine setup' for guided fixes[/cyan]")
+        console.print("\n[cyan]💡 Run 'meta setup' for guided fixes[/cyan]")
 
 
 @app.command()
@@ -459,45 +467,45 @@ def examples():
         {
             "title": "🚀 Quick Start",
             "commands": [
-                ("meta-refine setup", "Interactive setup wizard"),
-                ("meta-refine analyze --file app.py", "Analyze a single file"),
-                ("meta-refine doctor", "Check system health"),
+                ("meta setup", "Interactive setup wizard"),
+                ("meta analyze --file app.py", "Analyze a single file"),
+                ("meta doctor", "Check system health"),
             ]
         },
         {
             "title": "📁 File Analysis",
             "commands": [
-                ("meta-refine analyze --file script.py --verbose", "Detailed single file analysis"),
-                ("meta-refine analyze --file app.js --format json", "Export analysis as JSON"),
-                ("meta-refine analyze --file code.py --severity high", "Show only high+ severity issues"),
+                ("meta analyze --file script.py --verbose", "Detailed single file analysis"),
+                ("meta analyze --file app.js --format json", "Export analysis as JSON"),
+                ("meta analyze --file code.py --severity high", "Show only high+ severity issues"),
             ]
         },
         {
             "title": "🏗️ Project Analysis", 
             "commands": [
-                ("meta-refine analyze --project ./src", "Analyze entire project"),
-                ("meta-refine analyze --project . --parallel", "Fast parallel analysis"),
-                ("meta-refine analyze --project ./app --format html --output report.html", "Generate HTML report"),
+                ("meta analyze --project ./src", "Analyze entire project"),
+                ("meta analyze --project . --parallel", "Fast parallel analysis"),
+                ("meta analyze --project ./app --format html --output report.html", "Generate HTML report"),
             ]
         },
         {
             "title": "🔒 Security Focus",
             "commands": [
-                ("meta-refine analyze --file app.py --security --no-performance", "Security-only analysis"),
-                ("meta-refine analyze --project . --security --severity critical", "Critical security issues"),
+                ("meta analyze --file app.py --security --no-performance", "Security-only analysis"),
+                ("meta analyze --project . --security --severity critical", "Critical security issues"),
             ]
         },
         {
             "title": "⚡ Performance Analysis",
             "commands": [
-                ("meta-refine analyze --file slow.py --performance --no-suggestions", "Performance-only analysis"),
-                ("meta-refine analyze --project . --performance --format markdown", "Performance report"),
+                ("meta analyze --file slow.py --performance --no-suggestions", "Performance-only analysis"),
+                ("meta analyze --project . --performance --format markdown", "Performance report"),
             ]
         },
         {
             "title": "🎯 Interactive Mode",
             "commands": [
-                ("meta-refine interactive", "Start interactive analysis session"),
+                ("meta interactive", "Start interactive analysis session"),
                 ("analyze examples/example.py", "Analyze file in interactive mode"),
                 ("status", "Check system status in interactive mode"),
             ]
@@ -505,9 +513,9 @@ def examples():
         {
             "title": "⚙️ Configuration",
             "commands": [
-                ("meta-refine config --show", "Show current configuration"),
-                ("meta-refine config --set model.temperature=0.7", "Update model settings"),
-                ("meta-refine benchmark examples/example.py", "Benchmark analysis performance"),
+                ("meta config --show", "Show current configuration"),
+                ("meta config --set model.temperature=0.7", "Update model settings"),
+                ("meta benchmark examples/example.py", "Benchmark analysis performance"),
             ]
         }
     ]
@@ -525,7 +533,7 @@ def examples():
     console.print("• Use [cyan]--help[/cyan] with any command for detailed options")
     console.print("• Set [cyan]--verbose[/cyan] for detailed logging and debugging")
     console.print("• Use [cyan]--format json[/cyan] for programmatic integration")
-    console.print("• Run [cyan]meta-refine doctor[/cyan] if you encounter issues")
+    console.print("• Run [cyan]meta doctor[/cyan] if you encounter issues")
 
 
 @app.command()
@@ -673,8 +681,8 @@ async def _run_quick_analysis(file_path: Path):
 
 def _run_setup_wizard(force: bool = False):
     """Run the interactive setup wizard."""
-    console.print("\\n[bold blue]🚀 Meta-Refine Setup Wizard[/bold blue]")
-    console.print("Let's get you set up for intelligent code analysis!\\n")
+    console.print("\\n[bold rgb(25,119,243)]🔮 Meta AI Setup Wizard[/bold rgb(25,119,243)]")
+    console.print("[rgb(0,204,188)]Let's get you set up for AI-powered code intelligence![/rgb(0,204,188)]\\n")
     
     # Check if already configured
     env_file = Path(".env")
@@ -775,7 +783,7 @@ def _run_automated_setup(force: bool = False):
         else:
             console.print("[yellow]⚠️ No env.example found, manual configuration needed[/yellow]")
     
-    console.print("Run [cyan]meta-refine setup --interactive[/cyan] for guided setup.")
+    console.print("Run [cyan]meta setup --interactive[/cyan] for guided setup.")
 
 if __name__ == "__main__":
     app() 

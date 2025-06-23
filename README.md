@@ -1,6 +1,8 @@
-# Meta-Refine 🚀
+# ✨ meta refine
 
-**An intelligent code review and improvement system powered by Llama 3.1**
+**AI-Powered Code Intelligence by Meta**
+
+*Install globally and run with just `meta` - like magic! ✨*
 
 ## 🎯 Vision
 
@@ -42,36 +44,40 @@ Meta-Refine leverages Meta's Llama 3.1-8B-Instruct model to provide intelligent,
 - **Caching Layer**: Avoid redundant analysis of unchanged code
 - **Parallel Processing**: Multi-threaded analysis for speed
 
-## 🚀 Quick Start
+## 🚀 Installation
+
+Install globally and use anywhere with just `meta`:
 
 ```bash
-# 1. Clone and setup
+# Install from PyPI (coming soon!)
+pip install meta-refine
+
+# Or install from GitHub
+pip install git+https://github.com/abritton2002/meta-refine.git
+
+# Setup wizard (first time only)
+meta setup
+
+# You're ready! 🎉
+meta analyze my_code.py
+```
+
+### Development Installation
+
+```bash
+# Clone and setup for development
 git clone https://github.com/abritton2002/meta-refine.git
 cd meta-refine
 
-# 2. Install dependencies (using uv)
+# Install with uv (recommended)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv pip install -e .
 
-# 3. Interactive setup wizard
-python3 meta_refine.py setup
+# Or with pip
+pip install -e .
 
-# 4. Verify installation
-python3 meta_refine.py doctor
-
-# 5. Try it out!
-python3 meta_refine.py analyze --file examples/example.py
-```
-
-### Alternative Installation
-
-```bash
-# Using make (includes setup wizard)
-make quick-start
-
-# Manual pip installation
-pip install -r requirements.txt
-python3 meta_refine.py setup
+# Run setup wizard
+meta setup
 ```
 
 ## 📊 Example Output
@@ -105,29 +111,30 @@ python3 meta_refine.py setup
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `setup` | Interactive configuration wizard | `meta-refine setup` |
-| `analyze` | Analyze files or projects | `meta-refine analyze --file app.py` |
-| `interactive` | Start analysis REPL mode | `meta-refine interactive` |
-| `doctor` | Check system health | `meta-refine doctor` |
-| `examples` | Show usage examples | `meta-refine examples` |
-| `completion` | Setup shell auto-completion | `meta-refine completion --install` |
-| `config` | Manage configuration | `meta-refine config --show` |
-| `benchmark` | Performance testing | `meta-refine benchmark file.py` |
+| `meta setup` | Interactive configuration wizard | `meta setup` |
+| `meta analyze` | Analyze files or projects | `meta analyze --file app.py` |
+| `meta interactive` | Start AI coding assistant | `meta interactive` |
+| `meta doctor` | Check system health | `meta doctor` |
+| `meta examples` | Show usage examples | `meta examples` |
+| `meta completion` | Setup shell auto-completion | `meta completion --install` |
 
-### 🔍 Analysis Options
+### 🔍 Analysis Examples
 
 ```bash
-# Security-focused analysis
-meta-refine analyze --file app.py --security --no-performance
+# Quick analysis of any file
+meta analyze app.py
 
-# Export as JSON report
-meta-refine analyze --project ./src --format json --output report.json
+# Security-focused scan
+meta analyze --file app.py --security --no-performance
 
-# Critical issues only
-meta-refine analyze --project . --severity critical
+# Export detailed JSON report
+meta analyze --project ./src --format json --output report.json
 
-# Full project analysis with all options
-meta-refine analyze --project ./src --format html --output report.html --parallel
+# Find only critical issues
+meta analyze --project . --severity critical
+
+# Interactive AI coding session
+meta interactive
 ```
 
 ## 🎓 Learning Showcase

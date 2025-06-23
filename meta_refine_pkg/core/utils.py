@@ -74,7 +74,7 @@ def validate_environment(show_suggestions: bool = True) -> tuple[bool, dict]:
         'python_version': (_check_python_version(), "Upgrade to Python 3.8+ from python.org"),
         'torch_available': (_check_torch_availability(), "Install with: pip install torch"),
         'transformers_available': (_check_transformers_availability(), "Install with: pip install transformers"),
-        'hf_token': (_check_huggingface_token(), "Set HF_TOKEN in .env file or run 'meta-refine setup'"),
+        'hf_token': (_check_huggingface_token(), "Set HF_TOKEN in .env file or run 'meta setup'"),
         'model_access': (_check_model_access(), "Verify HF token and network connection"),
         'cache_directory': (_check_cache_directory(), "Check disk space and permissions"),
     }
@@ -134,7 +134,7 @@ def _check_transformers_availability() -> bool:
 def _check_huggingface_token() -> bool:
     """Check if Hugging Face token is available."""
     try:
-        from core.config import get_settings
+        from .config import get_settings
         settings = get_settings()
         if not settings.huggingface_token:
             logger.warning("HF_TOKEN not configured in settings")
