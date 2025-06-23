@@ -149,7 +149,7 @@ class Settings(BaseSettings):
     """Main settings class combining all configuration sections."""
     
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=[".env"],
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,

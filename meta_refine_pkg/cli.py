@@ -25,6 +25,7 @@ from .core.config import Settings, get_settings
 from .core.formatter import ResultFormatter
 from .core.model import LlamaModelInterface
 from .core.utils import setup_logging, validate_environment, get_system_info
+from .interactive import interactive_cli
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +58,21 @@ Instantly discover bugs, security vulnerabilities, and optimization opportunitie
 """,
     add_completion=True,
     rich_markup_mode="rich",
+    invoke_without_command=True,
 )
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """
+    Meta-Refine: AI-Powered Code Intelligence
+    
+    Just run 'meta' to launch the interactive interface!
+    """
+    if ctx.invoked_subcommand is None:
+        # No command provided, launch interactive interface
+        interactive_cli()
 
 
 def display_banner():
@@ -212,9 +226,22 @@ async def _run_analysis(
             remote_url = os.getenv('REMOTE_SERVER_URL')
             if remote_url:
                 logger.info(f"🌩️ Connecting to remote server: {remote_url}")
-                from .core.remote_client import RemoteModelInterface, RemoteAnalyzer
-                model = RemoteModelInterface(remote_url)
-                analyzer = RemoteAnalyzer(model, settings.analysis_config)
+                
+                # Check if it's HF Inference API
+                if "api-inference.huggingface.co" in remote_url:
+                    from .core.hf_inference_client import HFInferenceClient
+                    hf_token = os.getenv('HF_TOKEN')
+                    if not hf_token:
+                        raise RuntimeError("HF_TOKEN required for Hugging Face Inference API")
+                    
+                    model = HFInferenceClient(settings.llama_config.model_name, hf_token)
+                    from .core.analyzer import CodeAnalyzer
+                    analyzer = CodeAnalyzer(model, settings.analysis_config)
+                else:
+                    # Custom remote server
+                    from .core.remote_client import RemoteModelInterface, RemoteAnalyzer
+                    model = RemoteModelInterface(remote_url)
+                    analyzer = RemoteAnalyzer(model, settings.analysis_config)
             else:
                 logger.debug(f"Settings llama_config: {settings.llama_config}")
                 logger.info(f"Model name from config: {settings.llama_config.model_name}")
@@ -284,50 +311,9 @@ def interactive():
     """
     🎯 Start interactive analysis mode.
     
-    Provides a REPL-like experience for exploring code analysis.
+    Beautiful interactive UI with Meta branding and infinity animations.
     """
-    display_banner()
-    
-    console.print("\n[bold rgb(25,119,243)]🤖 Meta AI Assistant Activated[/bold rgb(25,119,243)]")
-    console.print("[dim]Type 'help' for commands, 'exit' to quit[/dim]\n")
-    
-    # Setup
-    setup_logging(False)
-    env_valid, _ = validate_environment(show_suggestions=False)
-    if not env_valid:
-        console.print("[red]Environment not ready. Run 'meta setup' first.[/red]")
-        raise typer.Exit(1)
-    
-    settings = get_settings()
-    
-    # Interactive REPL
-    while True:
-        try:
-            command = console.input("[bold rgb(25,119,243)]meta>[/bold rgb(25,119,243)] ").strip()
-            
-            if command.lower() in ['exit', 'quit', 'q']:
-                console.print("[green]Goodbye![/green]")
-                break
-            elif command.lower() in ['help', 'h']:
-                _show_interactive_help()
-            elif command.startswith('analyze '):
-                file_path = command[8:].strip()
-                if file_path:
-                    asyncio.run(_run_quick_analysis(Path(file_path)))
-                else:
-                    console.print("[red]Usage: analyze <file_path>[/red]")
-            elif command.lower() == 'status':
-                _show_system_status()
-            elif command.lower() == 'examples':
-                _show_examples()
-            else:
-                console.print(f"[red]Unknown command: {command}[/red]")
-                console.print("[dim]Type 'help' for available commands[/dim]")
-        except KeyboardInterrupt:
-            console.print("\n[green]Goodbye![/green]")
-            break
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+    interactive_cli()
 
 
 @app.command()

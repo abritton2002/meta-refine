@@ -7,13 +7,18 @@ Handles model loading, prompt engineering, and inference for code analysis.
 import logging
 import time
 from typing import Dict, List, Optional, Union, Any
-import torch
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForCausalLM, 
-    BitsAndBytesConfig,
-    pipeline
-)
+try:
+    import torch
+    from transformers import (
+        AutoTokenizer, 
+        AutoModelForCausalLM, 
+        BitsAndBytesConfig,
+        pipeline
+    )
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 from huggingface_hub import login
 import warnings
 
@@ -28,6 +33,9 @@ class LlamaModelInterface:
     
     def __init__(self, config: ModelConfig):
         """Initialize the model interface with configuration."""
+        if not HAS_TORCH:
+            raise RuntimeError("PyTorch not available. For remote inference, set REMOTE_SERVER_URL in .env")
+        
         self.config = config
         self.model = None
         self.tokenizer = None
@@ -49,8 +57,11 @@ class LlamaModelInterface:
         else:
             return "cpu"
     
-    def _create_quantization_config(self) -> Optional[BitsAndBytesConfig]:
+    def _create_quantization_config(self):
         """Create quantization configuration if needed."""
+        if not HAS_TORCH:
+            return None
+            
         try:
             if self.config.load_in_4bit:
                 logger.info("Enabling 4-bit quantization to reduce memory usage")
@@ -145,8 +156,11 @@ class LlamaModelInterface:
             logger.error(f"Failed to load model: {e}")
             raise RuntimeError(f"Model loading failed: {e}")
     
-    def _get_torch_dtype(self) -> torch.dtype:
+    def _get_torch_dtype(self):
         """Get the appropriate torch dtype."""
+        if not HAS_TORCH:
+            return None
+            
         if self.config.torch_dtype == "float16":
             return torch.float16
         elif self.config.torch_dtype == "bfloat16":

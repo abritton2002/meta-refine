@@ -10,5 +10,16 @@ __author__ = "Alex Britton"
 __email__ = "abritton2002@gmail.com"
 
 from .cli import app
+from .interactive import interactive_cli
+import sys
 
-__all__ = ["app"]
+def main():
+    """Main entry point that handles interactive mode by default."""
+    if len(sys.argv) == 1:
+        # No arguments provided, launch interactive mode
+        interactive_cli()
+    else:
+        # Arguments provided, use normal CLI
+        app()
+
+__all__ = ["app", "main"]

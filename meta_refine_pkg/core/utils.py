@@ -112,7 +112,10 @@ def _check_python_version() -> bool:
 
 
 def _check_torch_availability() -> bool:
-    """Check if PyTorch is available."""
+    """Check if PyTorch is available (skip if remote server configured)."""
+    import os
+    if os.getenv('REMOTE_SERVER_URL'):
+        return True  # Skip torch check for remote inference
     try:
         import torch
         return True
