@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  meta-refine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: meta-refine
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - MODEL_DEVICE=cpu
+      - LOG_LEVEL=INFO
+      - ENABLE_CACHE=true
+    volumes:
+      # Mount source code for analysis
+      - ./examples:/app/examples:ro
+      - ./analysis_output:/app/output
+      # Cache for model and analysis data
+      - meta_refine_cache:/app/cache
+    working_dir: /app
+    command: ["analyze", "--project", "/app/examples", "--format", "json", "--output", "/app/output/analysis.json"]
+    restart: unless-stopped
+    
+  # Optional: Redis for advanced caching
+  redis:
+    image: redis:7-alpine
+    container_name: meta-refine-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    profiles:
+      - advanced
+    
+  # Optional: Web interface (future enhancement)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: meta-refine-web
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    volumes:
+      - ./analysis_output:/app/output
+      - meta_refine_cache:/app/cache
+    command: ["web", "--host", "0.0.0.0", "--port", "8080"]
+    restart: unless-stopped
+    profiles:
+      - web
+
+volumes:
+  meta_refine_cache:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: meta-refine-network 
